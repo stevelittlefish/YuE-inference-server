@@ -311,6 +311,27 @@ class YuE2Pipeline:
         if self.device.type == "cuda":
             torch.cuda.empty_cache()
 
+    def park(self):
+        """Move resident weights to CPU RAM and free the VRAM, keeping the model
+        references so a later unpark() is a fast PCIe copy back rather than a cold
+        reload. Idempotent; safe before the model is even loaded. This is ASS's
+        /park — empty_cache() is not optional or the freed tensors linger in
+        torch's caching allocator and the GPU memory never returns to the driver.
+        """
+        if self._model is not None:
+            self._model.to("cpu")
+        if self._vae is not None:
+            self._vae.to("cpu")
+        if self.device.type == "cuda":
+            torch.cuda.empty_cache()
+
+    def unpark(self):
+        """Move the model back onto self.device (the reverse of park). Idempotent;
+        a no-op until the model has been loaded. The VAE is left on CPU — it moves
+        back onto the GPU on demand during decode()."""
+        if self._model is not None:
+            self._model.to(self.device)
+
     def __enter__(self):
         return self
 

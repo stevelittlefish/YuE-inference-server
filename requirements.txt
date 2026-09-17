@@ -1,0 +1,14 @@
+# Server + pipeline dependencies for the YuE2 ASS backend, pinned to match
+# pyproject.toml exactly. torch is installed SEPARATELY from the CUDA wheel index
+# in the Dockerfile (see there) so we get GPU wheels, not CPU ones — do not add
+# torch here or pip may resolve a CPU build.
+transformers==4.57.6
+huggingface-hub==0.36.2
+safetensors==0.7.0
+tiktoken==0.12.0
+numpy==2.2.6
+soundfile==0.13.1
+accelerate==1.13.0
+# The server itself (not in pyproject's runtime deps — this fork adds the API).
+fastapi>=0.110.0
+uvicorn[standard]>=0.27.0

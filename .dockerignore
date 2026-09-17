@@ -1,0 +1,18 @@
+# Keep the source layer tiny — none of this belongs in the image.
+.git/
+.github/
+assets/
+examples/
+docs/
+tests/
+skills/
+tools/
+outputs/
+runs/
+models/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+*.egg-info/
+ASS-API-SERVER-SPEC.md
