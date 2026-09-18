@@ -69,11 +69,22 @@ def preload(pipe: YuE2Pipeline) -> None:
 
 
 def park(pipe: YuE2Pipeline) -> None:
+    """Free the VRAM. Cheap: the pipeline offloads both the LM and the VAE back to
+    CPU at the end of every decode(), so after any job this is already a no-op.
+    It still earns its keep in one case — a backend that was preloaded at startup
+    but hasn't run a job yet has weights resident on the GPU, and this is the only
+    thing that reclaims them."""
     pipe.park()
 
 
 def unpark(pipe: YuE2Pipeline) -> None:
-    pipe.unpark()
+    """No-op. The pipeline streams weights onto the GPU per phase and offloads them
+    back to CPU after each job, so there is nothing to eagerly restore. The next
+    generation's _load_model() moves the weights onto the GPU exactly when it needs
+    them; eagerly copying ~3B params back here just to have decode() shove them off
+    again a moment later is wasted PCIe traffic (and the "unpark loads the whole
+    model" surprise)."""
+    return
 
 
 def _kwargs(request: GenerateRequest, keys) -> dict:
