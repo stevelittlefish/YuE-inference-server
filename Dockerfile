@@ -41,8 +41,10 @@ RUN pip3 install --no-cache-dir -r requirements.txt
 # --- Tiny source layer LAST. ---
 COPY . .
 
-# Install THIS package only (deps already present), no re-resolution.
-RUN pip3 install --no-cache-dir --no-deps -e .
+# Install THIS package only (deps already present), no re-resolution. Non-editable
+# — a container has no reason to keep a source link, and it sidesteps old
+# setuptools' missing PEP 660 build_editable hook.
+RUN pip3 install --no-cache-dir --no-deps .
 
 RUN mkdir -p /app/outputs/jobs /cache/huggingface /cache/torch
 
