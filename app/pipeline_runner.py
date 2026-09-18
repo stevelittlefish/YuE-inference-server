@@ -9,6 +9,7 @@ worker; nothing here touches the _gpu lock.
 from __future__ import annotations
 
 import os
+import random
 from pathlib import Path
 from typing import List
 
@@ -100,6 +101,15 @@ def run_generation(pipe: YuE2Pipeline, request: GenerateRequest, job_dir: Path) 
     the record — save_artifacts stows the lyrics inside request.json only.
     """
     job_dir = Path(job_dir)
+
+    # A blank seed must mean "different every time". It doesn't by default: an
+    # omitted seed is None, _kwargs drops it, and yue2's SongRequest then fills in
+    # its CONSTANT default (831001) — so a seedless request renders the same song
+    # byte-for-byte on every call. Roll a real one here when the caller left it
+    # blank, so "blank = random" holds and the chosen seed is recorded in the job's
+    # request.json for reproducibility.
+    if request.seed is None:
+        request.seed = random.randrange(2**63)  # matches the schema's [0, 2**63) bound
 
     if request.stage == "plan":
         plan = pipe.plan(**_kwargs(request, _PLAN_KEYS))
