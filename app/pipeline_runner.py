@@ -50,8 +50,22 @@ def load_pipeline() -> YuE2Pipeline:
 
 
 def preload(pipe: YuE2Pipeline) -> None:
-    """Force the model onto the GPU now, so readiness means truly ready."""
+    """Load everything the first request would otherwise load lazily.
+
+    Two lazy loads sit between "process started" and "first job done":
+      - the LM (`_load_model`), built onto the GPU, and
+      - the VAE decoder (`_vae`), read from disk on the first decode.
+    Force both now so readiness means truly ready and the first /v1/generate
+    isn't slower than the rest. The VAE is built onto CPU exactly as decode()
+    does it — decode() moves it to the GPU per call, so we don't here.
+    """
     pipe._load_model()
+    if pipe._vae is None:
+        from yue2.modeling_vae import YuE2VAE
+
+        pipe._vae = YuE2VAE.from_pretrained(
+            pipe.vae_dir, decoder_only=True, device="cpu", local_files_only=True,
+        )
 
 
 def park(pipe: YuE2Pipeline) -> None:

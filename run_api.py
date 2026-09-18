@@ -45,8 +45,8 @@ def main():
     pipe = load_pipeline()  # resolves + integrity-checks the weight files
     print("[startup] weights ready", flush=True)
 
-    print(f"[startup] loading model onto {device} ...", flush=True)
-    preload(pipe)  # build the model on the GPU now, so readiness means ready
+    print(f"[startup] loading model + VAE onto {device} ...", flush=True)
+    preload(pipe)  # build the model (GPU) and VAE (CPU) now, so readiness means ready
     print("[startup] model resident; serving", flush=True)
 
     app = create_app(
