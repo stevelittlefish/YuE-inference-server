@@ -14,7 +14,8 @@ from typing import List, Optional
 from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.responses import FileResponse
 
-from .schemas import Artifact, GenerateRequest, JobCreated, JobStatus, ServiceInfo
+from .schemas import Artifact, GenerateRequest, JobCreated, JobStatus, ServiceInfo, VRAMStats
+from .vram import vram_stats
 from .worker import Job, JobManager
 
 # Map an output file extension to its real MIME type so the contract's
@@ -104,6 +105,7 @@ def create_app(
             sample_rate=sample_rate,
             parked=manager.is_parked(),
             backend=backend,
+            vram=VRAMStats(**vram_stats()),
         )
 
     # ASS's park/unpark: our fork's addition so ASS can free the GPU for another

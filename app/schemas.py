@@ -80,6 +80,18 @@ class JobCreated(BaseModel):
     state: JobState
 
 
+class VRAMStats(BaseModel):
+    """This process's GPU memory, in MB. peak_mb is the high-water mark since the
+    process started (torch.cuda.max_memory_allocated), so it captures the inference
+    peak even when ASS reads it after a job. cuda=False on a GPU-less box."""
+
+    cuda: bool = False
+    device: Optional[str] = None
+    allocated_mb: int = 0
+    reserved_mb: int = 0
+    peak_mb: int = 0
+
+
 class ServiceInfo(BaseModel):
     model: str
     device: str
@@ -92,3 +104,4 @@ class ServiceInfo(BaseModel):
     cot_modes: List[str] = Field(default_factory=lambda: list(COT_MODES))
     stages: List[str] = Field(default_factory=lambda: list(STAGES))
     file_formats: List[str] = Field(default_factory=lambda: list(FILE_FORMATS))
+    vram: VRAMStats = Field(default_factory=VRAMStats)
