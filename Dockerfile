@@ -41,10 +41,20 @@ RUN pip3 install --no-cache-dir -r requirements.txt
 # --- Tiny source layer LAST. ---
 COPY . .
 
-# Install THIS package only (deps already present), no re-resolution. Non-editable
-# — a container has no reason to keep a source link, and it sidesteps old
-# setuptools' missing PEP 660 build_editable hook.
-RUN pip3 install --no-cache-dir --no-deps .
+# Install THIS package only (deps already present), no re-resolution. Non-editable.
+# NOTE: on its own this proved unreliable in the image — the build silently
+# installed ZERO packages (v1.0.1 shipped without an importable `yue2`, so
+# run_api.py died on `ModuleNotFoundError: No module named 'yue2'`). Rather than
+# fight the system pip's src-layout/PEP-639 discovery, we ALSO put the copied
+# source on PYTHONPATH below, which is exactly what the repo's own pytest config
+# does (`pythonpath = ["src"]`). Belt and suspenders: whichever works, `import
+# yue2` resolves. `|| true` so a discovery hiccup can't fail the build — the
+# PYTHONPATH line is the real guarantee.
+RUN pip3 install --no-cache-dir --no-deps . || true
+
+# The source lives at /app/src (src-layout); put it on the path so `import yue2`
+# works deterministically regardless of what the wheel build did.
+ENV PYTHONPATH=/app/src
 
 RUN mkdir -p /app/outputs/jobs /cache/huggingface /cache/torch
 
