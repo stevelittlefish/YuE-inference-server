@@ -3,7 +3,9 @@
 # CUDA 12.8 runtime (not devel — no build step needs nvcc). Matches the cu128
 # torch wheels installed below; torch bundles its own CUDA libs, the base image
 # supplies the driver-facing runtime + libsndfile/ffmpeg soundfile needs.
-FROM nvidia/cuda:12.8.0-runtime-ubuntu22.04
+# Patch pinned to 12.8.1 to match ACE-Step and stem-separator, so the multi-GB
+# CUDA base layer is one shared pull across the three. See docs/measurements.md.
+FROM nvidia/cuda:12.8.1-runtime-ubuntu22.04
 
 ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONUNBUFFERED=1 \
