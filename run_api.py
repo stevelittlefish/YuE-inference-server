@@ -23,7 +23,6 @@ Environment:
 
 import os
 
-import torch
 import uvicorn
 
 from app.pipeline_runner import load_pipeline, preload
@@ -38,11 +37,10 @@ def main():
     api_key = os.environ.get("YUE_API_KEY") or None
     default_cot = os.environ.get("YUE_DEFAULT_COT") or None
 
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-
     print(f"[startup] HF_HOME={os.environ.get('HF_HOME')} TORCH_HOME={os.environ.get('TORCH_HOME')}", flush=True)
     print("[startup] downloading weights (several GB, first run only) — not hung, grab a coffee", flush=True)
     pipe = load_pipeline()  # resolves + integrity-checks the weight files
+    device = str(pipe.device)
     print("[startup] weights ready", flush=True)
 
     print(f"[startup] loading model + VAE onto {device} ...", flush=True)

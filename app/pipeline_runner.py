@@ -118,23 +118,23 @@ def run_generation(pipe: YuE2Pipeline, request: GenerateRequest, job_dir: Path) 
         result = pipe(**_kwargs(request, _REQUEST_KEYS))
         result.save_artifacts(job_dir)  # audio.flac, score.abc, *.npy, *.json
         if request.file_format == "wav":
-            # save_artifacts always writes FLAC; deliver WAV when asked and drop
-            # the FLAC so the audio artifact is unambiguous.
+            # Keep the native FLAC: upstream's integrity receipt and
+            # SongResult.load() require it. List the requested WAV first.
             result.save(job_dir / "audio.wav")
-            (job_dir / "audio.flac").unlink(missing_ok=True)
 
     _write_lyrics(job_dir, request.lyrics)
-    return _enumerate_artifacts(job_dir)
+    return _enumerate_artifacts(job_dir, audio_name=f"audio.{request.file_format}")
 
 
 def _write_lyrics(job_dir: Path, lyrics: str) -> None:
     (job_dir / "lyrics.txt").write_text(lyrics, encoding="utf-8")
 
 
-def _enumerate_artifacts(job_dir: Path) -> List[dict]:
-    """Every file the run wrote becomes a named artifact, audio first."""
+def _enumerate_artifacts(job_dir: Path, *, audio_name="audio.flac") -> List[dict]:
+    """Every file becomes a named artifact, requested audio format first."""
     files = sorted(p for p in job_dir.iterdir() if p.is_file())
     # Surface audio + score first so a client scanning the list hits the good
     # stuff before the reproducibility .npy dumps.
-    files.sort(key=lambda p: (p.name not in ("audio.flac", "audio.wav", "score.abc"), p.name))
+    files.sort(key=lambda p: (p.name != audio_name,
+                             p.name not in ("audio.flac", "audio.wav", "score.abc"), p.name))
     return [{"name": p.name, "path": str(p)} for p in files]

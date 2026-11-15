@@ -16,6 +16,19 @@ Everything under `app/` plus `run_api.py` and the `Dockerfile`; the `src/yue2` p
 - **`app/schemas.py`** — the request/response models.
 - **`run_api.py`** — the entrypoint: load the pipeline, **preload the model and VAE onto the device at startup** (so `/health` only reports ready once inference is truly ready), then serve.
 
+## Upstream integration
+
+The pipeline includes upstream changes through `1116bea` (November 1, 2026).
+The HTTP service and its GPU parking behavior remain fork-specific. See the
+[generation guide](docs/generation.md) for the new validation, saved-result,
+progress and decoding interfaces, and [hardware notes](docs/hardware.md) for
+experimental low-memory and accelerator paths. These options are not all
+exposed by the HTTP wrapper; its request fields remain listed below.
+
+[Inside YuE2](docs/pipeline.html) is an offline HTML guide to the pipeline.
+The [integration validation notes](docs/upstream-integration.md) distinguish
+CPU regression coverage from the full-model GPU checks needed before deployment.
+
 ## API
 
 All JSON unless noted. Generation takes minutes, so it is asynchronous: `POST /v1/generate` enqueues a job and returns immediately; poll `GET /v1/jobs/{id}` until it reaches `succeeded` or `failed`.
@@ -49,6 +62,10 @@ All JSON unless noted. Generation takes minutes, so it is asynchronous: `POST /v
 | `seed`, `cfg_scale`, `abc_sampling`, `semantic_sampling`, `id` | Optional sampling and identity knobs; unset ones fall back to the pipeline's defaults. |
 
 Unknown fields are rejected with a 422. A successful job's `artifacts` enumerates every output — audio first, then the score, lyrics, and reproducibility metadata (semantic tokens, latents, settings).
+
+WAV requests list `audio.wav` first and also retain `audio.flac` as part of the
+native reproducibility bundle. Keeping the FLAC preserves compatibility with
+upstream's artifact verification and `SongResult.load()`.
 
 ```bash
 # Submit
