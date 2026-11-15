@@ -62,8 +62,7 @@ class GenerateRequest(BaseModel):
             raise ValueError("style and tags are aliases and cannot disagree.")
         # Optional section tags guide the planner; sung words never enter rendering.
         if self.lyrics and self.lyrics.strip() and not re.fullmatch(
-            r"(?:\s*\[(?:Intro|Verse|Pre-Chorus|Chorus|Bridge|Interlude|Outro|Instrumental)\]\s*)+",
-            self.lyrics, re.IGNORECASE,
+            r"(?:\s*\[[^\[\]\n]+\]\s*)+", self.lyrics,
         ):
             raise ValueError("Instrumental lyrics must be empty or contain only section tags.")
         if self.lyrics is None or not self.lyrics.strip():

@@ -110,7 +110,6 @@ def test_one_http_job_converts_and_renders_instrumental(
     {}, {"lyrics": ""},
     {"instrumental": True, "lyrics": "Words to sing"},
     {"instrumental": True, "lyrics": "[Verse]\nWords to sing"},
-    {"instrumental": True, "lyrics": "[Unrecognised]"},
     {"instrumental": True, "cot": "off"},
     {"instrumental": True, "cot": "invalid"},
     {"instrumental": True, "tags": "conflicting style"},
@@ -172,3 +171,26 @@ def test_score_tool_timeout_has_a_clear_failure(monkeypatch):
     monkeypatch.setattr(instrumental.subprocess, "run", timeout)
     with pytest.raises(ValueError, match="exceeded 30 seconds"):
         instrumental._run_tool("instrumentalize.py", "unused.abc")
+
+
+@pytest.mark.parametrize("style,expected", [
+    ("warm piano, 96.5 BPM", "Instrumental, warm piano, 96.5 BPM, no vocals, no singing, no choir, no spoken words"),
+    ("Instrumental, Mandarin, warm piano, acoustic pop, female vocal",
+     "Instrumental, Mandarin, warm piano, acoustic pop, no vocals, no singing, no choir, no spoken words"),
+    ("lofi beats, no vocals, male singer, choir pads.",
+     "Instrumental, lofi beats, no vocals, no singing, no choir, no spoken words"),
+])
+def test_planner_style_drops_voice_requests_and_repeats(style, expected):
+    assert instrumental.planner_style(style) == expected
+
+
+@pytest.mark.parametrize("lyrics", ["[Verse 1]\n\n[Solo]\n[Hook]", "  [Intro]  "])
+def test_any_section_tag_is_accepted_for_instrumentals(lyrics):
+    from app.schemas import GenerateRequest
+    assert GenerateRequest(instrumental=True, style="piano", lyrics=lyrics).lyrics == lyrics
+
+
+def test_words_outside_tags_are_rejected_for_instrumentals():
+    from app.schemas import GenerateRequest
+    with pytest.raises(ValueError):
+        GenerateRequest(instrumental=True, style="piano", lyrics="[Verse]\nhello world")

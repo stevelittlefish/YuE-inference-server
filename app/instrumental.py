@@ -7,6 +7,7 @@ Only these score operations run here; all model work uses the resident pipeline.
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 import subprocess
 import sys
@@ -17,6 +18,20 @@ from .schemas import GenerateRequest
 
 _SCRIPTS = Path(__file__).resolve().parents[1] / "skills/yue2-music/instrumental/scripts"
 _DEFAULT_SECTIONS = "[Intro]\n\n[Verse]\n\n[Chorus]\n\n[Outro]\n"
+_NO_VOCALS = ("no vocals", "no singing", "no choir", "no spoken words")
+# Style phrases that ask for a voice; they would contradict the no-vocal terms.
+_VOCAL_PHRASE = re.compile(
+    r"\b(vocals?|voices?|singers?|singing|sung|choir|choral|rap|rapper|a ?cappella|"
+    r"vocalist|falsetto)\b", re.IGNORECASE)
+
+
+def planner_style(style):
+    """Build an instrumental style: drop voice requests, add each condition once."""
+    parts = [p.strip().rstrip(".").strip() for p in (style or "").split(",")]
+    kept = [p for p in parts if p and p.lower() != "instrumental"
+            and p.lower() not in _NO_VOCALS
+            and (p.lower().startswith("no ") or not _VOCAL_PHRASE.search(p))]
+    return ", ".join(["Instrumental", *kept, *_NO_VOCALS])
 
 
 def _run_tool(name, *args):
@@ -39,8 +54,8 @@ def prepare_instrumental(pipe, request: GenerateRequest, job_dir: Path, plan_kwa
     its voices, chooses full/melody mode and adds the no-vocal style conditions.
     """
     style = request.style if request.style is not None else request.tags
-    planner_style = f"Instrumental, {style}, no vocals, no singing, no choir, no spoken words"
-    planning = dict(plan_kwargs, style=planner_style, lyrics=request.lyrics or _DEFAULT_SECTIONS,
+    style = planner_style(style)
+    planning = dict(plan_kwargs, style=style, lyrics=request.lyrics or _DEFAULT_SECTIONS,
                     cot=request.cot or "full")
     planning.pop("tags", None)
     original = pipe.plan(**planning)
@@ -62,7 +77,7 @@ def prepare_instrumental(pipe, request: GenerateRequest, job_dir: Path, plan_kwa
         conversion, prepared = root / "conversion", root / "prepared"
         _run_tool("instrumentalize.py", original_path.resolve(), "--output", conversion)
         _run_tool("instrumental.py", "prepare", "--abc", conversion / "score.abc",
-                  f"--style={planner_style}", "--seed", request.seed,
+                  f"--style={style}", "--seed", request.seed,
                   "--empty-lyrics", "--output", prepared)
         data = json.loads((prepared / "request.json").read_text(encoding="utf-8"))
         transfer = json.loads((conversion / "transfer.json").read_text(encoding="utf-8"))
