@@ -8,9 +8,10 @@ ASS talks to every backend the same way. Only the request is YuE-shaped.
 from __future__ import annotations
 
 from enum import Enum
+import re
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class JobState(str, Enum):
@@ -36,7 +37,8 @@ class GenerateRequest(BaseModel):
     model_config = {"extra": "forbid"}  # reject unknown fields with a 422
 
     style: Optional[str] = None  # "Mandarin, warm piano, acoustic pop, female vocal"
-    lyrics: str = Field(..., min_length=1)  # "[Verse]\n...\n[Chorus]\n..."
+    lyrics: Optional[str] = None  # Required for songs; optional for instrumentals.
+    instrumental: bool = False  # Plan, transfer Vocal melody to Ins, then render.
     tags: Optional[str] = None  # older alias for style; style preferred, must agree
     cot: Optional[str] = None  # chain-of-thought planning depth: full|melody|off
     seed: Optional[int] = Field(default=None, ge=0, lt=2**63)
@@ -47,6 +49,25 @@ class GenerateRequest(BaseModel):
     semantic_sampling: Optional[Dict[str, Any]] = None  # semantic-phase knobs
     file_format: str = "flac"  # audio delivery format: flac|wav
     stage: str = "audio"  # "plan" = ABC only (fast); "audio" = full song
+
+    @model_validator(mode="after")
+    def validate_lyrics(self):
+        if not self.instrumental:
+            if not self.lyrics:
+                raise ValueError("Provide nonempty lyrics for a song, or set instrumental=true.")
+            return self
+        if self.cot is not None and self.cot not in {"full", "melody"}:
+            raise ValueError("instrumental=true requires cot=full or melody.")
+        if self.style is not None and self.tags is not None and self.style != self.tags:
+            raise ValueError("style and tags are aliases and cannot disagree.")
+        # Optional section tags guide the planner; sung words never enter rendering.
+        if self.lyrics and self.lyrics.strip() and not re.fullmatch(
+            r"(?:\s*\[[^\[\]\n]+\]\s*)+", self.lyrics,
+        ):
+            raise ValueError("Instrumental lyrics must be empty or contain only section tags.")
+        if self.lyrics is None or not self.lyrics.strip():
+            self.lyrics = ""
+        return self
 
 
 class Artifact(BaseModel):
@@ -100,6 +121,7 @@ class ServiceInfo(BaseModel):
     # readiness — ASS unparks before sending work.
     parked: bool = False
     backend: str = "torch"
+    supports_instrumental: bool = True
     verb: str = "generate"
     cot_modes: List[str] = Field(default_factory=lambda: list(COT_MODES))
     stages: List[str] = Field(default_factory=lambda: list(STAGES))

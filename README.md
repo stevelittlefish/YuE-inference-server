@@ -53,7 +53,8 @@ All JSON unless noted. Generation takes minutes, so it is asynchronous: `POST /v
 
 | Field | Meaning |
 |---|---|
-| `lyrics` (required) | The song lyrics, e.g. `"[Verse]\n…\n[Chorus]\n…"`. |
+| `lyrics` | Required and nonempty for songs, e.g. `"[Verse]\n…\n[Chorus]\n…"`. With `instrumental=true`, omit it or supply empty text or section tags only. |
+| `instrumental` | `false` by default. When `true`, plan if needed, transfer the vocal melody to the instrumental score part, and render without sung words. See the [instrumental API guide](docs/instrumental-api.md). |
 | `style` / `tags` | Style prompt, e.g. `"Mandarin, warm piano, acoustic pop, female vocal"`. `tags` is an older alias for `style`; supply one. |
 | `cot` | Planning depth: `full` (editable melody-and-chord plan, default for new songs), `melody` (recommended for covers), or `off`. |
 | `abc` | A pre-supplied ABC score, which skips the planning phase. |
@@ -66,6 +67,12 @@ Unknown fields are rejected with a 422. A successful job's `artifacts` enumerate
 WAV requests list `audio.wav` first and also retain `audio.flac` as part of the
 native reproducibility bundle. Keeping the FLAC preserves compatibility with
 upstream's artifact verification and `SongResult.load()`.
+
+For an instrumental, submit `{"instrumental": true, "style": "Warm solo piano", "seed": 42}`
+through the same endpoint. It is one queued job with the usual polling and
+download routes. `stage="plan"` returns the converted instrumental score without
+audio; supplied `abc` skips composition but still goes through voice transfer.
+`/v1/info` advertises `supports_instrumental: true`.
 
 ```bash
 # Submit

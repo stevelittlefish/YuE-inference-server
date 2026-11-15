@@ -36,6 +36,7 @@ _KINDS = {
     "audio.flac": "audio",
     "audio.wav": "audio",
     "score.abc": "score",
+    "original_score.abc": "score",
     "lyrics.txt": "lyrics",
 }
 
@@ -129,8 +130,8 @@ def create_app(
             raise HTTPException(status_code=422, detail="Provide style (or its alias tags).")
         # Fill unset knobs from the server-wide defaults, so the stored request
         # reflects the values the job actually ran with.
-        if request.cot is None and default_cot is not None:
-            request.cot = default_cot
+        if request.cot is None:
+            request.cot = "full" if request.instrumental else default_cot
         job = manager.submit(request)
         return JobCreated(job_id=job.job_id, state=job.state)
 

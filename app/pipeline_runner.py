@@ -111,18 +111,24 @@ def run_generation(pipe: YuE2Pipeline, request: GenerateRequest, job_dir: Path) 
     if request.seed is None:
         request.seed = random.randrange(2**63)  # matches the schema's [0, 2**63) bound
 
-    if request.stage == "plan":
-        plan = pipe.plan(**_kwargs(request, _PLAN_KEYS))
+    effective = request
+    if request.instrumental:
+        from .instrumental import prepare_instrumental
+
+        effective = prepare_instrumental(pipe, request, job_dir, _kwargs(request, _PLAN_KEYS))
+
+    if effective.stage == "plan":
+        plan = pipe.plan(**_kwargs(effective, _PLAN_KEYS))
         plan.save(job_dir)  # score.abc (+ token .npy + plan.json + manifest)
     else:
-        result = pipe(**_kwargs(request, _REQUEST_KEYS))
+        result = pipe(**_kwargs(effective, _REQUEST_KEYS))
         result.save_artifacts(job_dir)  # audio.flac, score.abc, *.npy, *.json
         if request.file_format == "wav":
             # Keep the native FLAC: upstream's integrity receipt and
             # SongResult.load() require it. List the requested WAV first.
             result.save(job_dir / "audio.wav")
 
-    _write_lyrics(job_dir, request.lyrics)
+    _write_lyrics(job_dir, effective.lyrics)
     return _enumerate_artifacts(job_dir, audio_name=f"audio.{request.file_format}")
 
 
